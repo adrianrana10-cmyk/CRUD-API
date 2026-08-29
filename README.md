@@ -39,3 +39,25 @@ content-type: application/json
 ## Swagger UI
 
 ![Swagger screenshot](swagger-screenshot.png)
+
+## Database
+
+This project uses SQLite (`tasks.db`) for storage instead of an in-memory list.
+
+**Why SQLite:** zero setup (no server to install or run), the whole database is a single file, and data survives restarts — ideal for a small project like this.
+
+**Database file:** `tasks.db` is created automatically on first run and is git-ignored, so each fresh clone starts with a clean seeded database.
+
+**Run the project:**
+\`\`\`bash
+uvicorn main:app --reload --port 8000
+\`\`\`
+
+**Sample SQL query (run in DB Browser, Stage 4):**
+\`\`\`sql
+DELETE FROM tasks WHERE done = 1;
+\`\`\`
+After marking all tasks done, this deleted all 5 rows, leaving the table empty — confirmed the API reflected the change instantly with no restart needed.
+
+**Database screenshot:**
+![tasks table in DB Browser](db-screenshot.png)
