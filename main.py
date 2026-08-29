@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from db import init_db
 
+init_db()  # runs once at import time, before the app starts serving
 app = FastAPI()
 
 tasks = [
