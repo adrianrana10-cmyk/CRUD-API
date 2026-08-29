@@ -28,7 +28,7 @@ def get_tasks(db=Depends(get_db)):
 
 @app.get("/tasks/{task_id}", summary="Get a single task")
 def get_task(task_id: int, db=Depends(get_db)):
-    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     task = dict(row)
@@ -40,12 +40,12 @@ def create_task(task: TaskCreate, db=Depends(get_db)):
     if not task.title.strip():
         raise HTTPException(status_code=400, detail="title is required")
     cursor = db.execute(
-        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        "INSERT INTO tasks (title, done) VALUES (%s, %s)",
         (task.title, 0)
     )
     db.commit()
     new_id = cursor.lastrowid
-    row = db.execute("SELECT * FROM tasks WHERE id = ?", (new_id,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id = %s", (new_id,)).fetchone()
     result = dict(row)
     result["done"] = bool(result["done"])
     return result
@@ -58,23 +58,23 @@ class TaskUpdate(BaseModel):
 def update_task(task_id: int, update: TaskUpdate, db=Depends(get_db)):
     if not update.title.strip():
         raise HTTPException(status_code=400, detail="title is required")
-    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     db.execute(
-        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
         (update.title, int(update.done), task_id)
     )
     db.commit()
-    updated = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    updated = db.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
     result = dict(updated)
     result["done"] = bool(result["done"])
     return result
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
 def delete_task(task_id: int, db=Depends(get_db)):
-    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    db.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
     db.commit()
