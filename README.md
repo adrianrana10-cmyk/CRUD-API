@@ -59,5 +59,4 @@ DELETE FROM tasks WHERE done = 1;
 \`\`\`
 After marking all tasks done, this deleted all 5 rows, leaving the table empty — confirmed the API reflected the change instantly with no restart needed.
 
-**Database screenshot:**
 ![tasks table in DB Browser](db-screenshot.png)
