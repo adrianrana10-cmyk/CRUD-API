@@ -60,3 +60,51 @@ DELETE FROM tasks WHERE done = 1;
 After marking all tasks done, this deleted all 5 rows, leaving the table empty — confirmed the API reflected the change instantly with no restart needed.
 
 ![tasks table in DB Browser](db-screenshot.png)
+
+
+---
+
+## Update: Containerized Postgres (Week 3)
+
+Storage moved again: in-memory → SQLite → **Postgres, running in Docker**. The API endpoints above are unchanged — only the storage underneath.
+
+### Run everything with one command
+
+```bash
+git clone <your-repo-url>
+cd todo-api
+cp .env.example .env
+docker compose up
+```
+
+Server runs at `http://localhost:8000` as before.
+
+### Environment variables
+
+Copy `.env.example` to `.env` before running:
+
+| Variable       | Purpose                                  |
+|----------------|-------------------------------------------|
+| `DATABASE_URL` | Postgres connection string for the app     |
+
+### Architecture
+
+`compose.yaml` defines two services:
+- **api** — the FastAPI app, built from the local `Dockerfile`
+- **db** — official `postgres:16` image, with a named volume (`taskdata`) so rows survive container restarts
+
+`api` waits for `db`'s healthcheck (`pg_isready`) to pass before starting, avoiding a race condition where the app connects before Postgres finishes initializing.
+
+### Data in Postgres
+
+![Postgres tasks table](postgres-screenshot.png)
+
+### Persistence proof
+
+```bash
+docker compose down
+docker compose up
+curl http://localhost:8000/tasks
+```
+
+Tasks created before `down` are still present after `up` — the named volume keeps Postgres's data outside the container lifecycle.
