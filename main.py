@@ -40,12 +40,11 @@ def create_task(task: TaskCreate, db=Depends(get_db)):
     if not task.title.strip():
         raise HTTPException(status_code=400, detail="title is required")
     cursor = db.execute(
-        "INSERT INTO tasks (title, done) VALUES (%s, %s)",
-        (task.title, 0)
+        "INSERT INTO tasks (title, done) VALUES (%s, %s) RETURNING *",
+        (task.title, False)
     )
+    row = cursor.fetchone()
     db.commit()
-    new_id = cursor.lastrowid
-    row = db.execute("SELECT * FROM tasks WHERE id = %s", (new_id,)).fetchone()
     result = dict(row)
     result["done"] = bool(result["done"])
     return result
@@ -62,8 +61,8 @@ def update_task(task_id: int, update: TaskUpdate, db=Depends(get_db)):
     if row is None:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     db.execute(
-        "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
-        (update.title, int(update.done), task_id)
+    "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
+    (update.title, update.done, task_id)
     )
     db.commit()
     updated = db.execute("SELECT * FROM tasks WHERE id = %s", (task_id,)).fetchone()
