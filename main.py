@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
-from db import init_db
+from db import init_db, get_db
 
 init_db()  # runs once at import time, before the app starts serving
 app = FastAPI()
@@ -23,24 +23,38 @@ def health():
     return {"status": "ok"}
 
 @app.get("/tasks", summary="List all tasks")
-def get_tasks():
-    return tasks
+def get_tasks(db=Depends(get_db)):
+    rows = db.execute("SELECT * FROM tasks").fetchall()
+    result = []
+    for row in rows:
+        task = dict(row)
+        task["done"] = bool(task["done"])
+        result.append(task)
+    return result
 
 @app.get("/tasks/{task_id}", summary="Get a single task")
-def get_task(task_id: int):
-    for t in tasks:
-        if t["id"] == task_id:
-            return t
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+def get_task(task_id: int, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    task = dict(row)
+    task["done"] = bool(task["done"])
+    return task
 
 @app.post("/tasks", status_code=201, summary="Create a task")
-def create_task(task: TaskCreate):
+def create_task(task: TaskCreate, db=Depends(get_db)):
     if not task.title.strip():
         raise HTTPException(status_code=400, detail="title is required")
-    new_id = max((t["id"] for t in tasks), default=0) + 1
-    new_task = {"id": new_id, "title": task.title, "done": False}
-    tasks.append(new_task)
-    return new_task
+    cursor = db.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (task.title, 0)
+    )
+    db.commit()
+    new_id = cursor.lastrowid
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (new_id,)).fetchone()
+    result = dict(row)
+    result["done"] = bool(result["done"])
+    return result
 
 class TaskUpdate(BaseModel):
     title: str = ""
