@@ -5,12 +5,6 @@ from db import init_db, get_db
 init_db()  # runs once at import time, before the app starts serving
 app = FastAPI()
 
-tasks = [
-    {"id": 1, "title": "Buy milk", "done": False},
-    {"id": 2, "title": "Walk the dog", "done": True},
-    {"id": 3, "title": "Write report", "done": False},
-]
-
 class TaskCreate(BaseModel):
     title: str = ""
 
@@ -61,20 +55,26 @@ class TaskUpdate(BaseModel):
     done: bool = False
 
 @app.put("/tasks/{task_id}", summary="Update a task")
-def update_task(task_id: int, update: TaskUpdate):
-    for t in tasks:
-        if t["id"] == task_id:
-            if not update.title.strip():
-                raise HTTPException(status_code=400, detail="title is required")
-            t["title"] = update.title
-            t["done"] = update.done
-            return t
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+def update_task(task_id: int, update: TaskUpdate, db=Depends(get_db)):
+    if not update.title.strip():
+        raise HTTPException(status_code=400, detail="title is required")
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    db.execute(
+        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        (update.title, int(update.done), task_id)
+    )
+    db.commit()
+    updated = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    result = dict(updated)
+    result["done"] = bool(result["done"])
+    return result
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
-def delete_task(task_id: int):
-    for i, t in enumerate(tasks):
-        if t["id"] == task_id:
-            tasks.pop(i)
-            return
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+def delete_task(task_id: int, db=Depends(get_db)):
+    row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    db.commit()
