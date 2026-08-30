@@ -2,15 +2,32 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from supabase_client import supabase
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 public_router = APIRouter(tags=["public/protected demo"])
-
+bearer_scheme = HTTPBearer(auto_error=False)
 
 class AuthRequest(BaseModel):
     email: str = ""
     password: str = ""
 
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    if credentials is None or not credentials.credentials.strip():
+        raise HTTPException(status_code=401, detail="Access token required")
+
+    token = credentials.credentials.strip()
+
+    try:
+        result = supabase.auth.get_user(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if result is None or result.user is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return result.user
 
 @router.post("/signup", status_code=201)
 def signup(payload: AuthRequest):
@@ -46,31 +63,27 @@ def login(payload: AuthRequest):
         "refresh_token": result.session.refresh_token,
     }
 
+@router.post("/logout", status_code=204)
+def logout(user=Depends(get_current_user)):
+    try:
+        supabase.auth.sign_out()
+    except Exception:
+        pass
+    return
+
 @public_router.get("/public/info")
 def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
 @public_router.get("/protected/profile")
-def protected_profile(request: Request):
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header or not auth_header.startswith("Bearer ") or len(auth_header.split(" ", 1)[1].strip()) == 0:
-        raise HTTPException(status_code=401, detail="Access token required")
-
-    token = auth_header.split(" ", 1)[1].strip()
-
-    try:
-        result = supabase.auth.get_user(token)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    if result is None or result.user is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    user = result.user
+def protected_profile(user=Depends(get_current_user)):
     return {
         "id": user.id,
         "email": user.email,
         "created_at": user.created_at,
     }
+
+@public_router.get("/protected/dashboard")
+def protected_dashboard(user=Depends(get_current_user)):
+    return {"message": f"Welcome to your dashboard, {user.email}"}
