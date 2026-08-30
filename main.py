@@ -2,11 +2,13 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from db import init_db, get_db
 from supabase_client import supabase
-from auth import router as auth_router
+from auth import router as auth_router, public_router
+
 
 init_db()  # runs once at import time, before the app starts serving
 app = FastAPI()
 app.include_router(auth_router)
+app.include_router(public_router)
 
 class TaskCreate(BaseModel):
     title: str = ""
