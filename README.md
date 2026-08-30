@@ -108,3 +108,83 @@ curl http://localhost:8000/tasks
 ```
 
 Tasks created before `down` are still present after `up` — the named volume keeps Postgres's data outside the container lifecycle.
+
+# Task API
+
+A CRUD REST API for managing tasks, built with FastAPI. Originally built with SQLite (Week 2–3), now running on PostgreSQL with Supabase Auth for identity (Week 4).
+
+## Stack
+
+- **Framework:** FastAPI
+- **Database:** PostgreSQL (via `psycopg`), containerized with Docker
+- **Auth:** Supabase (email/password, JWT-based)
+- **Docs:** Auto-generated Swagger UI at `/docs`
+
+## Setup
+
+1. Clone the repo:
+```powershell
+   git clone https://github.com/adrianrana10-cmyk/CRUD-API.git
+   cd CRUD-API
+```
+
+2. Create a virtual environment and activate it:
+```powershell
+   python -m venv venv
+   venv\Scripts\activate
+```
+
+3. Install dependencies:
+```powershell
+   pip install -r requirements.txt
+```
+
+4. Create a `.env` file in the project root:
+
+DATABASE_URL=postgres://postgres:dev@localhost:5432/tasks
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
+
+
+5. Start Postgres via Docker (leave the `api` service stopped if running locally):
+```powershell
+   docker compose up -d db
+```
+
+6. Run the server:
+```powershell
+   uvicorn main:app --reload
+```
+
+7. Open `http://localhost:8000/docs` for interactive API docs.
+
+## Auth flow
+
+1. `POST /auth/signup` — create an account (email + password)
+2. `POST /auth/login` — returns an `access_token`
+3. Click **Authorize** in `/docs` and paste the token to unlock protected routes
+4. `POST /auth/logout` — invalidates the session
+
+## Endpoints
+
+| Method | Path | Auth required | Description |
+|---|---|---|---|
+| GET | `/` | No | API info |
+| GET | `/health` | No | Health check |
+| GET | `/public/info` | No | Public demo route |
+| POST | `/auth/signup` | No | Create account |
+| POST | `/auth/login` | No | Log in, get access token |
+| POST | `/auth/logout` | Yes | Invalidate session |
+| GET | `/protected/profile` | Yes | Get current user info |
+| GET | `/protected/dashboard` | Yes | Demo protected route |
+| GET | `/tasks` | No | List all tasks |
+| POST | `/tasks` | No | Create a task |
+| GET | `/tasks/{id}` | No | Get one task |
+| PUT | `/tasks/{id}` | No | Update a task |
+| DELETE | `/tasks/{id}` | No | Delete a task |
+
+> Note: task endpoints aren't guarded yet — auth currently covers identity only. Per-user data ownership (tenant isolation) is planned for the following week.
+
+## Screenshot
+
+![Swagger docs with Authorize padlock](docs-swagger-screenshot.png)
