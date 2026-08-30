@@ -1,12 +1,17 @@
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from db import init_db, get_db
+from supabase_client import supabase
 
 init_db()  # runs once at import time, before the app starts serving
 app = FastAPI()
 
 class TaskCreate(BaseModel):
     title: str = ""
+
+@app.on_event("startup")
+def startup_event():
+    print("Server running and connected to Supabase")
 
 @app.get("/")
 def root():
